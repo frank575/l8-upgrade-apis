@@ -5,10 +5,7 @@ const PORT = appConfig[process.env.NODE_ENV].PORT
 
 fastify.register(require('fastify-cors'), {
 	origin: (origin, cb) => {
-		console.log('-------------------------------------------')
-		console.log(origin)
-		console.log('-------------------------------------------')
-		if (/localhost/.test(origin)) {
+		if (origin === 'frank-handsome') {
 			//  Request from localhost will pass
 			cb(null, true)
 			return
