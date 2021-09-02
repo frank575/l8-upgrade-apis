@@ -21,7 +21,8 @@
   "homepage": "https://github.com/frank575/l8-upgrade-apis#readme",
   "dependencies": {
     "fastify": "^3.20.2",
-    "fastify-cors": "^6.0.2"
+    "fastify-cors": "^6.0.2",
+    "mongoose": "^6.0.4"
   },
   "devDependencies": {
     "@types/node": "^16.7.10",

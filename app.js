@@ -1,8 +1,9 @@
-const fastify = require('fastify')({ logger: true })
 const { appConfig } = require('./config')
+const fastify = require('fastify')({ logger: false })
 
 const PORT = appConfig[process.env.NODE_ENV].PORT
 
+// mongodb atlas connect tutorial https://zhuanlan.zhihu.com/p/347990778
 fastify.register(require('fastify-cors'), {
 	origin: (origin, cb) => {
 		if (origin === 'frank-handsome') {
