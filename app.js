@@ -1,4 +1,5 @@
 const { appConfig } = require('./config')
+require('./src/database/init-mongodb')
 const fastify = require('fastify')({ logger: false })
 
 const PORT = appConfig[process.env.NODE_ENV].PORT
