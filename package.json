@@ -1,0 +1,29 @@
+{
+  "name": "l8-upgrade-apis",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frank575/l8-upgrade-apis.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/frank575/l8-upgrade-apis/issues"
+  },
+  "homepage": "https://github.com/frank575/l8-upgrade-apis#readme",
+  "dependencies": {
+    "fastify": "^3.20.2"
+  },
+  "devDependencies": {
+    "@types/node": "^16.7.10",
+    "nodemon": "^2.0.12",
+    "prettier": "^2.3.2"
+  }
+}
