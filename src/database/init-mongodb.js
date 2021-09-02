@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
 
+// mongodb atlas connect tutorial https://zhuanlan.zhihu.com/p/347990778
 // process.env.DB_USERNAME process.env.DB_PASSWORD
 const uri = `mongodb+srv://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@cluster0.hn65m.mongodb.net/test`
 

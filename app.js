@@ -4,22 +4,14 @@ const fastify = require('fastify')({ logger: false })
 
 const PORT = appConfig[process.env.NODE_ENV].PORT
 
-// mongodb atlas connect tutorial https://zhuanlan.zhihu.com/p/347990778
-fastify.register(require('fastify-cors'), {
-	origin: (origin, cb) => {
-		if (origin === 'frank-handsome') {
-			//  Request from localhost will pass
-			cb(null, true)
-			return
-		}
-		// Generate an error on other origins, disabling access
-		cb(new Error('Not allowed'))
-	},
-})
+fastify.register(require('fastify-cors'), {})
 
 // Declare a route
 fastify.get('/', async (request, reply) => {
-	return process.env
+	return {
+		DB_USERNAME: process.env.DB_USERNAME,
+		DB_PASSWORD: process.env.DB_PASSWORD,
+	}
 })
 
 // Run the server!
