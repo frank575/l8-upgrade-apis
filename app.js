@@ -2,7 +2,7 @@ const fastify = require('fastify')({ logger: true })
 const PORT = 9281
 
 // Declare a route
-fastify.get('/', async (request, reply) => {
+fastify.get('/api/home', async (request, reply) => {
 	return { hello: 'world' }
 })
 
