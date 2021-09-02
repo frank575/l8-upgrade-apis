@@ -1,5 +1,7 @@
 const fastify = require('fastify')({ logger: true })
-const PORT = 9281
+const { appConfig } = require('./config')
+
+const PORT = appConfig[process.env.NODE_ENV].PORT
 
 // Declare a route
 fastify.get('/api/home', async (request, reply) => {
