@@ -1,17 +1,23 @@
-const fastify = require('fastify')()
+const fastify = require('fastify')({ logger: true })
 const { appConfig } = require('./config')
 
 const PORT = appConfig[process.env.NODE_ENV].PORT
 
 fastify.register(require('fastify-cors'), {
-	origin: ['*'],
-	methods: ['GET', 'POST', 'PUT', 'DELETE'],
-	allowedHeaders: ['Frank-Handsome'],
+	origin: (origin, cb) => {
+		console.log(origin)
+		if (/localhost/.test(origin)) {
+			//  Request from localhost will pass
+			cb(null, true)
+			return
+		}
+		// Generate an error on other origins, disabling access
+		cb(new Error('Not allowed'))
+	},
 })
 
 // Declare a route
 fastify.get('/', async (request, reply) => {
-	reply.header('Frank-Handsome', 1)
 	return { hello: 'world' }
 })
 
