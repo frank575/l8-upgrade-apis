@@ -11,6 +11,7 @@ fastify.register(require('fastify-cors'), {
 
 // Declare a route
 fastify.get('/', async (request, reply) => {
+	reply.header('Frank-Handsome', 1)
 	return { hello: 'world' }
 })
 
