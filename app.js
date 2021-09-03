@@ -11,12 +11,18 @@ require('./src/database/init-mongodb').then(({ db, models }) => {
 		const felyne = new models.Kitten({
 			name: 'Felyne' + Math.floor(Math.random() * 100),
 		})
-		felyne.save((err, fluffy) => {
-			if (err) return console.error(err)
-		})
+
+		try {
+			await felyne.save()
+		} catch (error) {
+			return {
+				saveError: error,
+				success: false
+			}
+		}
 
 		return {
-			hello: 'world'
+			success: true
 		}
 	})
 
