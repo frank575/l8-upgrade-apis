@@ -16,8 +16,7 @@ require('./src/database/init-mongodb').then(({ db, models }) => {
 		})
 
 		return {
-			DB_USERNAME: process.env.DB_USERNAME,
-			DB_PASSWORD: process.env.DB_PASSWORD,
+			hello: 'world'
 		}
 	})
 
