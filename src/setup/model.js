@@ -1,4 +1,4 @@
-const createModel = mongoose => {
+const setupModel = mongoose => {
 	const kittySchema = mongoose.Schema({
 		name: String,
 	})
@@ -8,4 +8,4 @@ const createModel = mongoose => {
 	}
 }
 
-module.exports = createModel
+module.exports = setupModel

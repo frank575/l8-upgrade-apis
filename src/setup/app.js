@@ -1,5 +1,6 @@
 const { appConfig } = require('@root/config')
 const setupMongodb = require('@/setup/mongodb')
+const setupMiddleware = require('@/setup/middleware')
 
 const setupApp = async () => {
 	try {
@@ -8,7 +9,7 @@ const setupApp = async () => {
 		const fastify = require('fastify')({ logger: false })
 		const PORT = appConfig[process.env.NODE_ENV].PORT
 
-		fastify.register(require('fastify-cors'), {})
+		setupMiddleware(fastify)
 
 		try {
 			await fastify.listen(PORT)
