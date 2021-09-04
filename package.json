@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "cross-env NODE_ENV=production node app.js",
-    "dev": "cross-env NODE_ENV=development nodemon app.js",
+    "start": "cross-env NODE_ENV=production node index.js",
+    "dev": "cross-env NODE_ENV=development nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -32,7 +32,9 @@
     "prettier": "^2.3.2"
   },
   "_moduleAliases": {
-    "@": ".",
+    "@root": ".",
+    "@": "src",
+    "@core": "src/core",
     "@model": "src/model",
     "@routes": "src/routes"
   }
