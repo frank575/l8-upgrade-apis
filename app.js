@@ -6,6 +6,7 @@ dotenv.config({ path: `.env.${process.env.NODE_ENV}` })
 const MONGODB_URI = process.env.MONGODB_URI
 const PORT = process.env.APP_PORT
 const API_BASE_URL = process.env.API_BASE_URL
+const SWAGGER_ROUTE_PREFIX = process.env.SWAGGER_ROUTE_PREFIX
 
 const fastify = require('fastify')({ logger: false })
 const mongoose = require('mongoose')
@@ -30,7 +31,7 @@ const start = async () => {
 					url: 'https://hackmd.io/rSdxPsX9QieDwqZGixJ5GA?view',
 					description: '查閱題目此點此連結',
 				},
-				host: 'localhost:9281',
+				host: SWAGGER_ROUTE_PREFIX,
 				schemes: ['http', 'https'],
 				consumes: ['application/json'],
 				produces: ['application/json'],
