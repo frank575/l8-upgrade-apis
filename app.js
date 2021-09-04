@@ -14,7 +14,7 @@ const slashStr = str => {
 	return str ? (/^\//.test(str) ? str : `/${str}`) : ''
 }
 
-const createBaseSchema = (
+const createBaseSchemaResponse = (
 	statusCode,
 	message,
 	dataSchema = {
@@ -38,11 +38,8 @@ const createBaseSchema = (
 	},
 })
 
-const createBaseResponse = (reply, statusCode, message, data = null) => {
-	reply.status(statusCode)
-
+const createBaseResponse = (message, data = null) => {
 	return {
-		success: statusCode === 200,
 		message,
 		data,
 	}
@@ -92,7 +89,7 @@ const start = async () => {
 							schema: {
 								tags: ['users'],
 								summary: '取得使用者列表',
-								response: createBaseSchema(200, '取得使用者列表成功', {
+								response: createBaseSchemaResponse(200, '取得使用者列表成功', {
 									type: 'array',
 									items: {
 										type: 'object',
@@ -109,23 +106,39 @@ const start = async () => {
 							},
 							async handler(req, reply) {
 								return createBaseResponse(
-									reply,
-									200,
 									'取得使用者列表成功',
 									await UserModel.find(),
 								)
 							},
 						})
+
 						fastify.route({
 							method: 'POST',
 							url: '/',
 							schema: {
 								tags: ['users'],
 								summary: '新增使用者',
+								body: {
+									type: 'object',
+									required: ['username', 'password'],
+									properties: {
+										username: {
+											type: 'string',
+											pattern: '^\\w+@[a-zA-Z_]+?\\.[a-zA-Z]{2,3}$',
+										},
+										password: {
+											type: 'string',
+											pattern: '^[A-z]\\d{2,6}[A-z]$',
+										},
+										name: {
+											type: 'string',
+											nullable: true,
+										},
+									},
+								},
 							},
 							async handler(req) {
-								const user = new UserModel(req.body)
-								return user.save()
+								return new UserModel(req.body).save()
 							},
 						})
 						done()
@@ -138,9 +151,11 @@ const start = async () => {
 		)
 
 		fastify.addHook('onError', async (req, reply, error) => {
-			const message = `[${req.url}] ${error.message}`
-			fastify.log.error(message)
-			reply.send(createBaseResponse(reply, 500, message))
+			req.__IS_ERROR__ = true
+		})
+
+		fastify.addHook('onSend', async (req, reply, payload) => {
+			return payload.replace(/"statusCode":[^12]\d{2}/, '"success":false')
 		})
 
 		await fastify.listen(PORT)
