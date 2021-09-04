@@ -1,4 +1,7 @@
-require('./src/database/init-mongodb').then(({ db, models }) => {
+require('module-alias/register')
+const setupMongodb = require('@model/setup-mongodb')
+
+setupMongodb.then(({ models }) => {
 	const { appConfig } = require('./config')
 	const fastify = require('fastify')({ logger: false })
 
@@ -17,25 +20,20 @@ require('./src/database/init-mongodb').then(({ db, models }) => {
 		} catch (error) {
 			return {
 				saveError: error,
-				success: false
+				success: false,
 			}
 		}
 
 		return {
-			success: true
+			success: true,
 		}
 	})
 
-	// Run the server!
-	const start = async () => {
-		try {
-			await fastify.listen(PORT)
-			console.log(`Server is running in http://localhost:${PORT}`)
-		} catch (err) {
+	fastify.listen(PORT, function (err, address) {
+		if (err) {
 			fastify.log.error(err)
 			process.exit(1)
 		}
-	}
-
-	start()
+		fastify.log.info(`server listening on ${address}`)
+	})
 })
