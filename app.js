@@ -31,7 +31,6 @@ const start = async () => {
 					url: 'https://hackmd.io/rSdxPsX9QieDwqZGixJ5GA?view',
 					description: '查閱題目此點此連結',
 				},
-				host: SWAGGER_ROUTE_PREFIX,
 				schemes: ['http', 'https'],
 				consumes: ['application/json'],
 				produces: ['application/json'],
