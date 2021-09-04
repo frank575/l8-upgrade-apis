@@ -19,7 +19,7 @@ const start = async () => {
 	try {
 		fastify.register(require('fastify-cors'), {})
 		fastify.register(require('fastify-swagger'), {
-			routePrefix: '/documentation',
+			routePrefix: '/doc/api',
 			exposeRoute: true,
 			swagger: {
 				info: {
@@ -31,7 +31,7 @@ const start = async () => {
 					url: 'https://hackmd.io/rSdxPsX9QieDwqZGixJ5GA?view',
 					description: '查閱題目此點此連結',
 				},
-				schemes: ['http', 'https'],
+				schemes: 'https',
 				consumes: ['application/json'],
 				produces: ['application/json'],
 				tags: [{ name: 'users', description: '使用者' }],
