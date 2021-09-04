@@ -2,10 +2,10 @@
   "name": "l8-upgrade-apis",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "app.js",
   "scripts": {
-    "start": "cross-env NODE_ENV=production node index.js",
-    "dev": "cross-env NODE_ENV=development nodemon index.js",
+    "start": "cross-env NODE_ENV=production node app.js",
+    "dev": "cross-env NODE_ENV=development nodemon app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -20,9 +20,9 @@
   },
   "homepage": "https://github.com/frank575/l8-upgrade-apis#readme",
   "dependencies": {
+    "dotenv": "^10.0.0",
     "fastify": "^3.20.2",
     "fastify-cors": "^6.0.2",
-    "module-alias": "^2.2.2",
     "mongoose": "^6.0.4"
   },
   "devDependencies": {
@@ -35,7 +35,8 @@
     "@root": ".",
     "@": "src",
     "@core": "src/core",
-    "@model": "src/model",
-    "@routes": "src/routes"
+    "@models": "src/models",
+    "@controllers": "src/controllers",
+    "@routes": "src/routes.js"
   }
 }
