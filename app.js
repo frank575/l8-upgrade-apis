@@ -31,7 +31,7 @@ const start = async () => {
 					description: '查閱題目此點此連結',
 				},
 				host: 'localhost:9281',
-				schemes: ['http'],
+				schemes: ['http', 'https'],
 				consumes: ['application/json'],
 				produces: ['application/json'],
 				tags: [{ name: 'users', description: '使用者' }],
