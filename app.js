@@ -150,12 +150,10 @@ const start = async () => {
 			{ prefix: API_BASE_URL || '' },
 		)
 
-		fastify.addHook('onError', async (req, reply, error) => {
-			req.__IS_ERROR__ = true
-		})
-
 		fastify.addHook('onSend', async (req, reply, payload) => {
-			return payload.replace(/"statusCode":[^12]\d{2}/, '"success":false')
+			return typeof payload === 'string'
+				? payload.replace(/"statusCode":[^12]\d{2}/, '"success":false')
+				: payload
 		})
 
 		await fastify.listen(PORT)
