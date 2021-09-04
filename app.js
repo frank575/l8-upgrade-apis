@@ -6,13 +6,46 @@ dotenv.config({ path: `.env.${process.env.NODE_ENV}` })
 const MONGODB_URI = process.env.MONGODB_URI
 const PORT = process.env.APP_PORT
 const API_BASE_URL = process.env.API_BASE_URL
-const SWAGGER_ROUTE_PREFIX = process.env.SWAGGER_ROUTE_PREFIX
 
 const fastify = require('fastify')({ logger: false })
 const mongoose = require('mongoose')
 
 const slashStr = str => {
 	return str ? (/^\//.test(str) ? str : `/${str}`) : ''
+}
+
+const createBaseSchema = (
+	statusCode,
+	message,
+	dataSchema = {
+		nullable: true,
+		default: null,
+	},
+) => ({
+	[statusCode]: {
+		type: 'object',
+		properties: {
+			success: {
+				type: 'boolean',
+				default: statusCode === 200,
+			},
+			message: {
+				type: 'string',
+				default: message,
+			},
+			data: dataSchema,
+		},
+	},
+})
+
+const createBaseResponse = (reply, statusCode, message, data = null) => {
+	reply.status(statusCode)
+
+	return {
+		success: statusCode === 200,
+		message,
+		data,
+	}
 }
 
 const start = async () => {
@@ -49,7 +82,6 @@ const start = async () => {
 				password: String,
 			}),
 		)
-
 		fastify.register(
 			(fastify, opt, done) => {
 				fastify.register(
@@ -60,32 +92,30 @@ const start = async () => {
 							schema: {
 								tags: ['users'],
 								summary: '取得使用者列表',
-								response: {
-									200: {
-										type: 'array',
-										items: {
-											type: 'object',
-											properties: {
-												name: {
-													type: 'string',
-													nullable: true,
-													default: null,
-												},
-												username: { type: 'string' },
+								response: createBaseSchema(200, '取得使用者列表成功', {
+									type: 'array',
+									items: {
+										type: 'object',
+										properties: {
+											name: {
+												type: 'string',
+												nullable: true,
+												default: null,
 											},
+											username: { type: 'string' },
 										},
 									},
-								},
+								}),
 							},
-							async handler() {
-								try {
-									return await UserModel.find()
-								} catch (error) {
-									return error
-								}
+							async handler(req, reply) {
+								return createBaseResponse(
+									reply,
+									200,
+									'取得使用者列表成功',
+									await UserModel.find(),
+								)
 							},
 						})
-
 						fastify.route({
 							method: 'POST',
 							url: '/',
@@ -94,12 +124,8 @@ const start = async () => {
 								summary: '新增使用者',
 							},
 							async handler(req) {
-								try {
-									const user = new UserModel(req.body)
-									return user.save()
-								} catch (error) {
-									return error
-								}
+								const user = new UserModel(req.body)
+								return user.save()
 							},
 						})
 						done()
@@ -110,6 +136,12 @@ const start = async () => {
 			},
 			{ prefix: API_BASE_URL || '' },
 		)
+
+		fastify.addHook('onError', async (req, reply, error) => {
+			const message = `[${req.url}] ${error.message}`
+			fastify.log.error(message)
+			reply.send(createBaseResponse(reply, 500, message))
+		})
 
 		await fastify.listen(PORT)
 		fastify.swagger()
