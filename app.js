@@ -117,6 +117,15 @@ const setupApp = async () => {
 				consumes: ['application/json'],
 				produces: ['application/json'],
 				tags: [{ name: 'users', description: '使用者' }],
+				securityDefinitions: {
+					token: {
+						type: 'apiKey',
+						name: 'Authorization',
+						in: 'header',
+						description:
+							'請在下方輸入框輸入登入後取得的 JWT Token： Bearer {token}',
+					},
+				},
 			},
 		})
 
@@ -138,11 +147,12 @@ const setupApp = async () => {
 			},
 		})
 
-		fastify.decorate('authenticate', async function (req) {
+		fastify.decorate('authenticate', async function (req, reply) {
 			try {
 				await req.jwtVerify()
-			} catch (error) {
-				return new Error(error)
+			} catch (err) {
+				reply.status(401)
+				throw new Error(err)
 			}
 		})
 
@@ -169,7 +179,7 @@ const setupApp = async () => {
 					username: this.username,
 					name: this.name,
 				},
-				{ expiresIn: /*86400*/ 60 },
+				{ expiresIn: 86400 },
 			)
 		}
 
@@ -227,7 +237,7 @@ const setupApp = async () => {
 						const user = await User.findOne({ username }, 'name username role')
 
 						if (user == null)
-							return new Error('使用者不存在，請確認帳號或密碼是否正確')
+							throw new Error('使用者不存在，請確認帳號或密碼是否正確')
 
 						const token = user.getJwtToken()
 
@@ -280,7 +290,7 @@ const setupApp = async () => {
 							'name username role',
 						)
 
-						if (user != null) return new Error('使用者已存在')
+						if (user != null) throw new Error('使用者已存在')
 
 						await new User({
 							...body,
@@ -296,7 +306,7 @@ const setupApp = async () => {
 						fastify.route({
 							method: 'GET',
 							url: '/:username',
-							preValidation: [fastify.authenticate],
+							preHandler: [fastify.authenticate],
 							schema: {
 								tags: ['users'],
 								summary: '取得使用者',
@@ -309,16 +319,16 @@ const setupApp = async () => {
 										username: { type: 'string', default: 'aa@aa.aa' },
 									},
 								},
+								security: [{ token: [] }],
 							},
 							async handler(req) {
-								console.log(req.user)
 								const { username } = req.params
 								const user = await User.findOne(
 									{ username },
 									'name username role',
 								)
 
-								if (user == null) return new Error('使用者不存在')
+								if (user == null) throw new Error('使用者不存在')
 
 								return createBaseResponse(200, '取得使用者成功', user)
 							},
@@ -339,13 +349,13 @@ const setupApp = async () => {
 		// 		: payload
 		// })
 
-		fastify.setErrorHandler((error, request, reply) => {
-			let message = error.message
-			if (error.validation) {
-				localize['zh-TW'](error.validation)
-				message = error.validation[0].message
+		fastify.setErrorHandler((err, request, reply) => {
+			let message = err.message
+			if (err.validation) {
+				localize['zh-TW'](err.validation)
+				message = err.validation[0].message
 			}
-			request.log.error({ err: error })
+			request.log.error({ err })
 			reply.send({
 				success: false,
 				message,
@@ -358,9 +368,9 @@ const setupApp = async () => {
 
 		console.log(`server listening on http://localhost:${PORT}/`)
 		fastify.log.info(`server listening on ${PORT}/`)
-	} catch (error) {
-		console.log(error)
-		fastify.log.error(error)
+	} catch (err) {
+		console.log(err)
+		fastify.log.error(err)
 		process.exit(1)
 	}
 }
