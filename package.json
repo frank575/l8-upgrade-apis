@@ -20,14 +20,17 @@
   },
   "homepage": "https://github.com/frank575/l8-upgrade-apis#readme",
   "dependencies": {
+    "axios": "^0.21.3",
     "body-parser": "^1.19.0",
     "cors": "^2.8.5",
     "dotenv": "^10.0.0",
     "express": "^4.17.1",
     "express-jwt": "^6.1.0",
+    "imgur": "^1.0.2",
     "jsonwebtoken": "^8.5.1",
     "md5": "^2.3.0",
-    "mongoose": "^6.0.4"
+    "mongoose": "^6.0.4",
+    "multer": "^1.4.3"
   },
   "devDependencies": {
     "@types/node": "^16.7.10",

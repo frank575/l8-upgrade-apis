@@ -3,15 +3,39 @@ const expressJwt = require('express-jwt')
 const jwt = require('jsonwebtoken')
 const cors = require('cors')
 const bodyParser = require('body-parser')
+const multer = require('multer')
 const dotenv = require('dotenv')
 const md5 = require('md5')
 const mongoose = require('mongoose')
+const imgur = require('imgur')
 const { ERole } = require('./enums')
 
 dotenv.config()
 dotenv.config({ path: `.env.${process.env.NODE_ENV}` })
 
-const { MONGODB_URI, APP_PORT, API_BASE_URL, JWT_SECRET } = process.env
+const {
+	MONGODB_URI,
+	APP_PORT,
+	JWT_SECRET,
+	IMGUR_CLIENT_ID,
+	IMGUR_CLIENT_SECRET,
+	IMGUR_AUTH_ACCESS_TOKEN,
+} = process.env
+
+imgur.setClientId(IMGUR_CLIENT_ID)
+
+const uploadPicture = multer({
+	limit: {
+		fileSize: 1000000, // 10MB
+	},
+	fileFilter(req, file, cb) {
+		const fileType = file.mimetype
+		if (/^image\/[A-z]+$/.test(fileType)) {
+			return cb(null, true)
+		}
+		cb(new Error('僅接受 gif, png, jpg, jpeg 格式'))
+	},
+})
 
 ;(async () => {
 	await mongoose.connect(MONGODB_URI)
@@ -34,11 +58,11 @@ const { MONGODB_URI, APP_PORT, API_BASE_URL, JWT_SECRET } = process.env
 	userSchema.methods.getJwtToken = function () {
 		return jwt.sign(
 			{
+				_id: this._id,
 				username: this.username,
-				name: this.name,
 			},
 			JWT_SECRET,
-			{ expiresIn: /*86400*/ 60, algorithm: 'HS256' },
+			{ expiresIn: 86400, algorithm: 'HS256' },
 		)
 	}
 
@@ -67,6 +91,13 @@ const { MONGODB_URI, APP_PORT, API_BASE_URL, JWT_SECRET } = process.env
 		password: md5('a00a'),
 		role: ERole.USER,
 	})
+
+	const fileSchema = new mongoose.Schema({
+		id: { type: String, required: true, unique: true },
+		link: String,
+		deletehash: String,
+	})
+	const File = mongoose.model('File', fileSchema)
 
 	const app = express()
 
@@ -143,12 +174,6 @@ const { MONGODB_URI, APP_PORT, API_BASE_URL, JWT_SECRET } = process.env
 		}
 	})
 
-	// token 驗證
-	app.use(async (req, res, next) => {
-		console.log('Accessing the secret section ...')
-		next() // pass control to the next handler
-	})
-
 	app.get('/api/users/:username', async (req, res, next) => {
 		try {
 			const { username } = req.params
@@ -161,6 +186,69 @@ const { MONGODB_URI, APP_PORT, API_BASE_URL, JWT_SECRET } = process.env
 				message: '取得使用者成功',
 				data: user,
 			})
+		} catch (err) {
+			next(err)
+		}
+	})
+
+	app.post(
+		'/api/files/uploadPicture',
+		uploadPicture.single('image'),
+		async (req, res, next) => {
+			try {
+				const { file } = req
+				if (file) {
+					// await imgur.deleteImage('0mZ5RrJSTNWawJY')
+					const { id, link, deletehash } = await imgur.uploadBase64(
+						Buffer.from(file.buffer).toString('base64'),
+					)
+					await new File({ id, link, deletehash }).save()
+					return res.send({
+						success: true,
+						message: '上傳圖片成功',
+						data: link,
+					})
+				}
+				throw new Error('請上傳圖片')
+			} catch (err) {
+				next(err)
+			}
+		},
+	)
+
+	app.get('/api/files/:id', async (req, res, next) => {
+		try {
+			const { id } = req.params
+			if (id) {
+				const file = await File.findOne({ id }, 'link')
+				if (file == null) throw new Error('找不到圖片')
+
+				return res.send({
+					success: true,
+					message: '取得圖片路徑成功',
+					data: file.link,
+				})
+			}
+			throw new Error('圖片 id 為必填')
+		} catch (err) {
+			next(err)
+		}
+	})
+
+	app.delete('/api/files/:id', async (req, res, next) => {
+		try {
+			const { id } = req.params
+			if (id) {
+				const { deletedCount } = await File.deleteOne({ id })
+				if (deletedCount < 1) throw new Error('找不到圖片')
+
+				return res.send({
+					success: true,
+					message: '刪除圖片成功',
+					data: null,
+				})
+			}
+			throw new Error('圖片 id 為必填')
 		} catch (err) {
 			next(err)
 		}
