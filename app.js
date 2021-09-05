@@ -239,8 +239,11 @@ const uploadPicture = multer({
 		try {
 			const { id } = req.params
 			if (id) {
-				const { deletedCount } = await File.deleteOne({ id })
-				if (deletedCount < 1) throw new Error('找不到圖片')
+				const file = await File.findOneAndRemove({ id })
+
+				if (file == null) throw new Error('找不到圖片')
+
+				await imgur.deleteImage(file.deletehash)
 
 				return res.send({
 					success: true,
