@@ -1,378 +1,181 @@
-const Fastify = require('fastify')
-const localize = require('ajv-i18n')
+const express = require('express')
+const expressJwt = require('express-jwt')
+const jwt = require('jsonwebtoken')
+const cors = require('cors')
+const bodyParser = require('body-parser')
+const dotenv = require('dotenv')
 const md5 = require('md5')
 const mongoose = require('mongoose')
-const { Schema } = mongoose
+const { ERole } = require('./enums')
 
-const dotenv = require('dotenv')
 dotenv.config()
 dotenv.config({ path: `.env.${process.env.NODE_ENV}` })
 
-const { MONGODB_URI, APP_PORT: PORT, API_BASE_URL, JWT_SECRET } = process.env
+const { MONGODB_URI, APP_PORT, API_BASE_URL, JWT_SECRET } = process.env
 
-const fastify = Fastify({
-	logger: false,
-})
+;(async () => {
+	await mongoose.connect(MONGODB_URI)
+	console.log('MongoDB connected...')
 
-/**
- * @template T
- * @param {T} obj
- * @return {T & {t(val: *): string, key(val: *): string, keys: string[], map: function(callback?: function(*, string): *): *[], reduce: function(callback: function(*, *, string): *, initialValue: *): *}}
- */
-const createEnum = obj => {
-	const translation = {}
-	const reverseEnum = {}
-	const $enum = {}
-	const keys = []
-	const t = val => translation[val]
-	const key = val => reverseEnum[val]
-	const map = callback =>
-		callback ? keys.map((k, i) => callback($enum[k], k, i)) : keys
-	const reduce = (callback, initialValue) => {
-		let previous = initialValue
-		keys.map((k, i) => {
-			previous = callback(previous, $enum[k], k, i)
-		})
-		return previous
-	}
-
-	function addEnum(key, val) {
-		if (Array.isArray(val)) {
-			const [v, t] = val
-			translation[v] = t
-			$enum[key] = v
-			reverseEnum[v] = key
-		} else {
-			$enum[key] = val
-			reverseEnum[val] = key
-		}
-		keys.push(key)
-	}
-
-	for (const k in obj) {
-		addEnum(k, obj[k])
-	}
-
-	return { ...$enum, t, key, keys, map, reduce }
-}
-
-const slashStr = str => {
-	return str ? (/^\//.test(str) ? str : `/${str}`) : ''
-}
-
-const createBaseSchemaResponse = (
-	statusCode,
-	message,
-	dataSchema = {
-		nullable: true,
-		default: null,
-	},
-) => ({
-	[statusCode]: {
-		type: 'object',
-		properties: {
-			success: {
-				type: 'boolean',
-				default: statusCode === 200,
+	const userSchema = new mongoose.Schema({
+		name: String,
+		username: { type: String, required: true, unique: true },
+		password: { type: String, required: true },
+		role: {
+			type: String,
+			enum: {
+				values: ERole.map(e => e),
+				message: '使用者權限未設定',
 			},
-			message: {
-				type: 'string',
-				default: message,
-			},
-			data: dataSchema,
+			default: ERole.USER,
 		},
-	},
-})
+	})
 
-const createBaseResponse = (statusCode, message, data = null) => {
-	return {
-		success: statusCode < 400,
-		message,
-		data,
-	}
-}
-
-const setupApp = async () => {
-	try {
-		fastify.register(require('fastify-cors'), {})
-
-		fastify.register(require('fastify-jwt'), {
-			secret: JWT_SECRET,
-		})
-
-		fastify.register(require('fastify-swagger'), {
-			routePrefix: '/doc/api',
-			exposeRoute: true,
-			swagger: {
-				info: {
-					title: '您好，接口',
-					description: 'by frank575',
-					version: '0.0.0',
-				},
-				externalDocs: {
-					url: 'https://hackmd.io/rSdxPsX9QieDwqZGixJ5GA?view',
-					description: '查閱題目此點此連結',
-				},
-				schemes: 'https',
-				consumes: ['application/json'],
-				produces: ['application/json'],
-				tags: [{ name: 'users', description: '使用者' }],
-				securityDefinitions: {
-					token: {
-						type: 'apiKey',
-						name: 'Authorization',
-						in: 'header',
-						description:
-							'請在下方輸入框輸入登入後取得的 JWT Token： Bearer {token}',
-					},
-				},
+	userSchema.methods.getJwtToken = function () {
+		return jwt.sign(
+			{
+				username: this.username,
+				name: this.name,
 			},
-		})
-
-		const ERole = createEnum({
-			ADMIN: 'ADMIN',
-			USER: 'USER',
-		})
-
-		fastify.addSchema({
-			$id: '#user',
-			type: 'object',
-			properties: {
-				name: { type: 'string', nullable: true, default: null },
-				username: { type: 'string' },
-				role: {
-					type: 'string',
-					default: ERole.USER,
-				},
-			},
-		})
-
-		fastify.decorate('authenticate', async function (req, reply) {
-			try {
-				await req.jwtVerify()
-			} catch (err) {
-				reply.status(401)
-				throw new Error(err)
-			}
-		})
-
-		await mongoose.connect(MONGODB_URI)
-		console.log('MongoDB connected...')
-
-		const userSchema = new Schema({
-			name: String,
-			username: { type: String, required: true, unique: true },
-			password: { type: String, required: true },
-			role: {
-				type: String,
-				enum: {
-					values: ERole.map(e => e),
-					message: '使用者權限未設定',
-				},
-				default: ERole.USER,
-			},
-		})
-
-		userSchema.methods.getJwtToken = function () {
-			return fastify.jwt.sign(
-				{
-					username: this.username,
-					name: this.name,
-				},
-				{ expiresIn: 86400 },
-			)
-		}
-
-		const User = mongoose.model('User', userSchema)
-
-		if (
-			(await User.findOne({ username: 'admin' }, 'name username role')) == null
-		) {
-			await new User({
-				name: '位高權上者',
-				username: 'admin',
-				password: md5('123456'),
-				role: ERole.ADMIN,
-			}).save()
-		}
-
-		fastify.register(
-			(fastify, opt, done) => {
-				fastify.route({
-					method: 'POST',
-					url: '/login',
-					schema: {
-						tags: ['users'],
-						summary: '登入',
-						body: {
-							type: 'object',
-							required: ['username', 'password'],
-							properties: {
-								username: {
-									type: 'string',
-									default: 'aa@aa.aa',
-									description: '帳號',
-								},
-								password: {
-									type: 'string',
-									default: 'a00a',
-									description: '密碼',
-								},
-							},
-						},
-						response: createBaseSchemaResponse(200, '登入成功', {
-							type: 'object',
-							properties: {
-								user: {
-									$ref: '#user',
-								},
-								token: {
-									type: 'string',
-								},
-							},
-						}),
-					},
-					async handler(req) {
-						const { username } = req.body
-						const user = await User.findOne({ username }, 'name username role')
-
-						if (user == null)
-							throw new Error('使用者不存在，請確認帳號或密碼是否正確')
-
-						const token = user.getJwtToken()
-
-						return createBaseResponse(200, '登入成功', {
-							user,
-							token,
-						})
-					},
-				})
-
-				fastify.route({
-					method: 'POST',
-					url: '/register',
-					schema: {
-						tags: ['users'],
-						summary: '註冊',
-						body: {
-							type: 'object',
-							required: ['username', 'password'],
-							properties: {
-								username: {
-									type: 'string',
-									pattern: '^\\w+@[a-zA-Z_]+?\\.[a-zA-Z]{2,3}$',
-									default: 'aa@aa.aa',
-									description: '帳號',
-								},
-								password: {
-									type: 'string',
-									pattern: '^[A-z]\\d{2,6}[A-z]$',
-									default: 'a00a',
-									description: '密碼',
-								},
-								name: {
-									type: 'string',
-									nullable: true,
-									default: 'AA君',
-									description: '顯示名稱',
-								},
-							},
-						},
-						response: createBaseSchemaResponse(200, '註冊成功', {
-							type: 'null',
-							default: null,
-						}),
-					},
-					async handler(req) {
-						const body = req.body
-						const user = await User.findOne(
-							{ username: body.username },
-							'name username role',
-						)
-
-						if (user != null) throw new Error('使用者已存在')
-
-						await new User({
-							...body,
-							password: md5(body.password),
-						}).save()
-
-						return createBaseResponse(200, '註冊成功')
-					},
-				})
-				// user routes
-				fastify.register(
-					(fastify, opt, done) => {
-						fastify.route({
-							method: 'GET',
-							url: '/:username',
-							preHandler: [fastify.authenticate],
-							schema: {
-								tags: ['users'],
-								summary: '取得使用者',
-								response: createBaseSchemaResponse(200, '取得使用者成功', {
-									$ref: '#user',
-								}),
-								params: {
-									type: 'object',
-									properties: {
-										username: { type: 'string', default: 'aa@aa.aa' },
-									},
-								},
-								security: [{ token: [] }],
-							},
-							async handler(req) {
-								const { username } = req.params
-								const user = await User.findOne(
-									{ username },
-									'name username role',
-								)
-
-								if (user == null) throw new Error('使用者不存在')
-
-								return createBaseResponse(200, '取得使用者成功', user)
-							},
-						})
-
-						done()
-					},
-					{ prefix: '/users' },
-				)
-				done()
-			},
-			{ prefix: API_BASE_URL || '' },
+			JWT_SECRET,
+			{ expiresIn: /*86400*/ 60, algorithm: 'HS256' },
 		)
-
-		// fastify.addHook('onSend', async (req, reply, payload) => {
-		// 	return typeof payload === 'string'
-		// 		? payload.replace(/"statusCode":[^12]\d{2}/, '"success":false')
-		// 		: payload
-		// })
-
-		fastify.setErrorHandler((err, request, reply) => {
-			let message = err.message
-			if (err.validation) {
-				localize['zh-TW'](err.validation)
-				message = err.validation[0].message
-			}
-			request.log.error({ err })
-			reply.send({
-				success: false,
-				message,
-				data: null,
-			})
-		})
-
-		await fastify.listen(PORT)
-		fastify.swagger()
-
-		console.log(`server listening on http://localhost:${PORT}/`)
-		fastify.log.info(`server listening on ${PORT}/`)
-	} catch (err) {
-		console.log(err)
-		fastify.log.error(err)
-		process.exit(1)
 	}
-}
 
-setupApp()
+	const User = mongoose.model('User', userSchema)
+
+	const checkUserExistsCreate = async (data = {}) => {
+		try {
+			if ((await User.findOne({ username: data.username })) == null) {
+				await new User(data).save()
+			}
+		} catch (err) {
+			console.log(err)
+		}
+	}
+
+	checkUserExistsCreate({
+		name: '位高權上者',
+		username: 'admin',
+		password: md5('123456'),
+		role: ERole.ADMIN,
+	})
+
+	checkUserExistsCreate({
+		name: 'AA君',
+		username: 'aa@aa.aa',
+		password: md5('a00a'),
+		role: ERole.USER,
+	})
+
+	const app = express()
+
+	app.use(cors())
+	app.use(bodyParser())
+	app.use(
+		expressJwt({
+			secret: JWT_SECRET,
+			algorithms: ['HS256'],
+		}).unless({
+			path: ['/api/login', '/api/register'],
+		}),
+	)
+
+	app.get('/', async (req, res) => {
+		res.send('您好，接口！')
+	})
+
+	app.post('/api/login', async (req, res, next) => {
+		try {
+			const { username } = req.body
+			const user = await User.findOne({ username }, 'name username role')
+
+			if (user == null)
+				throw new Error('使用者不存在，請確認帳號或密碼是否正確')
+
+			const token = user.getJwtToken()
+
+			res.send({
+				success: true,
+				message: '登入成功',
+				data: {
+					token,
+				},
+			})
+		} catch (err) {
+			next(err)
+		}
+	})
+
+	app.post('/api/register', async (req, res, next) => {
+		try {
+			const body = req.body
+			const { username, password } = body
+
+			if (username == null || password == null)
+				throw new Error('帳號或密碼不得為空')
+
+			if (!/^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/.test(username))
+				throw new Error('帳號格式錯誤')
+
+			if (!/^[A-z]\d{2,6}[A-z]$/.test(password)) throw new Error('密碼格式錯誤')
+
+			const user = await User.findOne({ username }, 'name username role')
+
+			if (user != null) throw new Error('使用者已存在')
+
+			await new User({
+				...body,
+				password: md5(body.password),
+			}).save()
+
+			return {
+				success: true,
+				message: '註冊成功',
+				data: null,
+			}
+		} catch (err) {
+			next(err)
+		}
+	})
+
+	// token 驗證
+	app.use(async (req, res, next) => {
+		console.log('Accessing the secret section ...')
+		next() // pass control to the next handler
+	})
+
+	app.get('/api/users/:username', async (req, res, next) => {
+		try {
+			const { username } = req.params
+			const user = await User.findOne({ username }, 'name username role')
+
+			if (user == null) throw new Error('使用者不存在')
+
+			res.send({
+				success: true,
+				message: '取得使用者成功',
+				data: user,
+			})
+		} catch (err) {
+			next(err)
+		}
+	})
+
+	app.use(async (err, req, res, next) => {
+		console.error(err)
+		if (err.name === 'UnauthorizedError') {
+			res.status(401)
+		} else {
+			res.status(500)
+		}
+		res.send({
+			success: false,
+			message: err.message,
+			data: null,
+		})
+	})
+
+	await app.listen(APP_PORT)
+	console.log(`Server listening at http://localhost:${APP_PORT}`)
+})()
