@@ -164,11 +164,13 @@ const setupApp = async () => {
 		})
 
 		userSchema.methods.getJwtToken = function () {
-			return fastify.jwt.sign({
-				username: this.username,
-				name: this.name,
-				exp: Math.floor(Date.now() / 1000) + 60 * 1,
-			})
+			return fastify.jwt.sign(
+				{
+					username: this.username,
+					name: this.name,
+				},
+				{ expiresIn: /*86400*/ 60 },
+			)
 		}
 
 		const User = mongoose.model('User', userSchema)
@@ -308,7 +310,7 @@ const setupApp = async () => {
 									},
 								},
 							},
-							async handler(req, reply) {
+							async handler(req) {
 								console.log(req.user)
 								const { username } = req.params
 								const user = await User.findOne(
