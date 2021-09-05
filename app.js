@@ -77,12 +77,16 @@ const { MONGODB_URI, APP_PORT, API_BASE_URL, JWT_SECRET } = process.env
 			secret: JWT_SECRET,
 			algorithms: ['HS256'],
 		}).unless({
-			path: ['/api/login', '/api/register'],
+			path: ['/', '/api/login', '/api/register'],
 		}),
 	)
 
 	app.get('/', async (req, res) => {
-		res.send('您好，接口！')
+		res.send({
+			success: true,
+			message: '您好，接口！',
+			data: '\\frank/\\frank/\\frank/',
+		})
 	})
 
 	app.post('/api/login', async (req, res, next) => {
