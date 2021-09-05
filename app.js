@@ -9,6 +9,7 @@ const md5 = require('md5')
 const mongoose = require('mongoose')
 const imgur = require('imgur')
 const { ERole } = require('./enums')
+const { getImgurPictureId } = require('./utils')
 
 dotenv.config()
 dotenv.config({ path: `.env.${process.env.NODE_ENV}` })
@@ -45,6 +46,7 @@ const uploadPicture = multer({
 		name: String,
 		username: { type: String, required: true, unique: true },
 		password: { type: String, required: true },
+		imgLink: { type: String },
 		role: {
 			type: String,
 			enum: {
@@ -98,6 +100,18 @@ const uploadPicture = multer({
 		deletehash: String,
 	})
 	const File = mongoose.model('File', fileSchema)
+	const uploadImgurAndSave = async file => {
+		const { id, link, deletehash } = await imgur.uploadBase64(
+			Buffer.from(file.buffer).toString('base64'),
+		)
+		return await new File({ id, link, deletehash }).save()
+	}
+	const deleteDbAndImgurPicture = async id => {
+		const file = await File.findOneAndRemove({ id })
+		if (file == null) throw new Error('找不到圖片')
+
+		await imgur.deleteImage(file.deletehash)
+	}
 
 	const app = express()
 
@@ -192,17 +206,52 @@ const uploadPicture = multer({
 	})
 
 	app.post(
+		'/api/users/uploadPicture',
+		uploadPicture.single('image'),
+		async (req, res, next) => {
+			try {
+				const { file } = req
+				if (file) {
+					const userId = req.user._id
+					const user = await User.findById(userId, 'imgLink')
+					if (user == null) throw new Error('找不到使用者')
+
+					const { link: newImgLink } = await uploadImgurAndSave(file)
+
+					if (user.imgLink != null) {
+						const imgurPictureId = getImgurPictureId(user.imgLink)
+						if (imgurPictureId != null) {
+							try {
+								// 找不到圖片不砍就是了
+								await deleteDbAndImgurPicture(imgurPictureId)
+							} catch {}
+						}
+					}
+
+					await User.updateOne({ _id: userId }, { imgLink: newImgLink })
+
+					return res.send({
+						success: true,
+						message: '上傳圖片成功',
+						data: newImgLink,
+					})
+				}
+				throw new Error('請上傳圖片')
+			} catch (err) {
+				next(err)
+			}
+		},
+	)
+
+	app.post(
 		'/api/files/uploadPicture',
 		uploadPicture.single('image'),
 		async (req, res, next) => {
 			try {
 				const { file } = req
 				if (file) {
-					// await imgur.deleteImage('0mZ5RrJSTNWawJY')
-					const { id, link, deletehash } = await imgur.uploadBase64(
-						Buffer.from(file.buffer).toString('base64'),
-					)
-					await new File({ id, link, deletehash }).save()
+					const { link } = await uploadImgurAndSave(file)
+
 					return res.send({
 						success: true,
 						message: '上傳圖片成功',
@@ -239,11 +288,7 @@ const uploadPicture = multer({
 		try {
 			const { id } = req.params
 			if (id) {
-				const file = await File.findOneAndRemove({ id })
-
-				if (file == null) throw new Error('找不到圖片')
-
-				await imgur.deleteImage(file.deletehash)
+				await deleteDbAndImgurPicture(id)
 
 				return res.send({
 					success: true,

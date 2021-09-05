@@ -43,3 +43,9 @@ exports.createEnum = obj => {
 exports.slashStr = str => {
 	return str ? (/^\//.test(str) ? str : `/${str}`) : ''
 }
+
+exports.getImgurPictureId = (link = '') => {
+	const match = link.match(/\/([\w\d]+)\.\w+$/)
+	if (match == null) return null
+	return match[1]
+}
