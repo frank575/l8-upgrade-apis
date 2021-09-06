@@ -134,7 +134,7 @@ const JWT_PROPS = {
 	app.post('/api/login', async (req, res, next) => {
 		try {
 			const { username } = req.body
-			const user = await User.findOne({ username }, 'name username role')
+			const user = await User.findOne({ username }, 'name username role link')
 
 			if (user == null)
 				throw new Error('使用者不存在，請確認帳號或密碼是否正確')
@@ -166,7 +166,7 @@ const JWT_PROPS = {
 
 			if (!/^[A-z]\d{2,6}[A-z]$/.test(password)) throw new Error('密碼格式錯誤')
 
-			const user = await User.findOne({ username }, 'name username role')
+			const user = await User.findOne({ username }, 'name username role link')
 
 			if (user != null) throw new Error('使用者已存在')
 
@@ -188,7 +188,7 @@ const JWT_PROPS = {
 	app.get('/api/user', expressJwt(JWT_PROPS), async (req, res, next) => {
 		try {
 			const userId = req.user._id
-			const user = await User.findById(userId, 'name username role')
+			const user = await User.findById(userId, 'name username role link')
 
 			if (user == null) throw new Error('使用者不存在')
 
@@ -205,7 +205,7 @@ const JWT_PROPS = {
 	app.get('/api/users/:username', expressJwt(JWT_PROPS), async (req, res, next) => {
 		try {
 			const { username } = req.params
-			const user = await User.findOne({ username }, 'name username role')
+			const user = await User.findOne({ username }, 'name username role link')
 
 			if (user == null) throw new Error('使用者不存在')
 
