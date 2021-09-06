@@ -38,6 +38,11 @@ const uploadPicture = multer({
 	},
 })
 
+const JWT_PROPS = {
+		secret: JWT_SECRET,
+		algorithms: ['HS256'],
+	}
+
 ;(async () => {
 	await mongoose.connect(MONGODB_URI)
 	console.log('MongoDB connected...')
@@ -117,14 +122,6 @@ const uploadPicture = multer({
 
 	app.use(cors())
 	app.use(bodyParser())
-	app.use(
-		expressJwt({
-			secret: JWT_SECRET,
-			algorithms: ['HS256'],
-		}).unless({
-			path: ['/', '/api/login', '/api/register'],
-		}),
-	)
 
 	app.get('/', async (req, res) => {
 		res.send({
@@ -188,7 +185,24 @@ const uploadPicture = multer({
 		}
 	})
 
-	app.get('/api/users/:username', async (req, res, next) => {
+	app.get('/api/user', expressJwt(JWT_PROPS), async (req, res, next) => {
+		try {
+			const userId = req.user._id
+			const user = await User.findById(userId, 'name username role')
+
+			if (user == null) throw new Error('使用者不存在')
+
+			res.send({
+				success: true,
+				message: '取得使用者成功',
+				data: user,
+			})
+		} catch (err) {
+			next(err)
+		}
+	})
+
+	app.get('/api/users/:username', expressJwt(JWT_PROPS), async (req, res, next) => {
 		try {
 			const { username } = req.params
 			const user = await User.findOne({ username }, 'name username role')
@@ -205,8 +219,34 @@ const uploadPicture = multer({
 		}
 	})
 
+	app.put(
+		'/api/users/updateName',
+		expressJwt(JWT_PROPS),
+		async (req, res, next) => {
+			try {
+				const {name} = req.body
+				if (name == null) throw new Error('body.name 為必填')
+				if (typeof name !== 'string' || name.trim().length === 0) throw new Error('名字不能為空字串')
+
+				const { _id } = req.user
+				const user = await User.findOneAndUpdate({ _id }, { name } )
+
+				if (user == null) throw new Error('使用者不存在')
+
+				res.send({
+					success: true,
+					message: '修改使用者名稱成功',
+					data: null,
+				})
+			} catch (err) {
+				next(err)
+			}
+		},
+	)
+
 	app.post(
 		'/api/users/uploadPicture',
+		expressJwt(JWT_PROPS),
 		uploadPicture.single('image'),
 		async (req, res, next) => {
 			try {
@@ -245,6 +285,7 @@ const uploadPicture = multer({
 
 	app.post(
 		'/api/files/uploadPicture',
+		expressJwt(JWT_PROPS),
 		uploadPicture.single('image'),
 		async (req, res, next) => {
 			try {
@@ -265,7 +306,7 @@ const uploadPicture = multer({
 		},
 	)
 
-	app.get('/api/files/:id', async (req, res, next) => {
+	app.get('/api/files/:id', expressJwt(JWT_PROPS), async (req, res, next) => {
 		try {
 			const { id } = req.params
 			if (id) {
@@ -284,7 +325,7 @@ const uploadPicture = multer({
 		}
 	})
 
-	app.delete('/api/files/:id', async (req, res, next) => {
+	app.delete('/api/files/:id', expressJwt(JWT_PROPS), async (req, res, next) => {
 		try {
 			const { id } = req.params
 			if (id) {
@@ -300,6 +341,14 @@ const uploadPicture = multer({
 		} catch (err) {
 			next(err)
 		}
+	})
+
+	app.use((req, res, next) => {
+		res.status(404).send({
+			success: false,
+			message: '找不到API',
+			data: null
+		})
 	})
 
 	app.use(async (err, req, res, next) => {
