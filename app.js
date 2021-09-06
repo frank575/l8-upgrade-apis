@@ -144,9 +144,8 @@ const JWT_PROPS = {
 			res.send({
 				success: true,
 				message: '登入成功',
-				data: {
-					token,
-				},
+				token,
+				data: user,
 			})
 		} catch (err) {
 			next(err)
