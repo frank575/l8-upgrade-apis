@@ -204,11 +204,11 @@ const JWT_PROPS = {
 				password: md5(body.password),
 			}).save()
 
-			return {
+			res.send({
 				success: true,
 				message: '註冊成功',
 				data: null,
-			}
+			})
 		} catch (err) {
 			next(err)
 		}
@@ -310,7 +310,7 @@ const JWT_PROPS = {
 				if (file) {
 					const { link } = await uploadImgurAndSave(file)
 
-					return res.send({
+					res.send({
 						success: true,
 						message: '上傳圖片成功',
 						data: link,
@@ -330,7 +330,7 @@ const JWT_PROPS = {
 				const file = await File.findOne({ id }, 'link')
 				if (file == null) throw new Error('找不到圖片')
 
-				return res.send({
+				res.send({
 					success: true,
 					message: '取得圖片路徑成功',
 					data: file.link,
@@ -348,7 +348,7 @@ const JWT_PROPS = {
 			if (id) {
 				await deleteDbAndImgurPicture(id)
 
-				return res.send({
+				res.send({
 					success: true,
 					message: '刪除圖片成功',
 					data: null,
