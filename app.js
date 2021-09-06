@@ -85,6 +85,35 @@ const JWT_PROPS = {
 		}
 	}
 
+	const commonUserUploadPicture = async (req, res, file, isBase64 = false) => {
+		if (file) {
+			const userId = req.user._id
+			const user = await User.findById(userId, 'imgLink')
+			if (user == null) throw new Error('找不到使用者')
+
+			const { link: newImgLink } = await uploadImgurAndSave(file, isBase64)
+
+			if (user.imgLink != null) {
+				const imgurPictureId = getImgurPictureId(user.imgLink)
+				if (imgurPictureId != null) {
+					try {
+						// 找不到圖片不砍就是了
+						await deleteDbAndImgurPicture(imgurPictureId)
+					} catch {}
+				}
+			}
+
+			await User.updateOne({ _id: userId }, { imgLink: newImgLink })
+
+			res.send({
+				success: true,
+				message: '上傳圖片成功',
+				data: newImgLink,
+			})
+		}
+		throw new Error('請上傳圖片')
+	}
+
 	checkUserExistsCreate({
 		name: '位高權上者',
 		username: 'admin',
@@ -105,12 +134,13 @@ const JWT_PROPS = {
 		deletehash: String,
 	})
 	const File = mongoose.model('File', fileSchema)
-	const uploadImgurAndSave = async file => {
-		const { id, link, deletehash } = await imgur.uploadBase64(
-			Buffer.from(file.buffer).toString('base64'),
-		)
+
+	const uploadImgurAndSave = async (file, isBase64 = false) => {
+		const base64 = isBase64 ? file : Buffer.from(file.buffer).toString('base64')
+		const { id, link, deletehash } = await imgur.uploadBase64(base64)
 		return await new File({ id, link, deletehash }).save()
 	}
+
 	const deleteDbAndImgurPicture = async id => {
 		const file = await File.findOneAndRemove({ id })
 		if (file == null) throw new Error('找不到圖片')
@@ -250,32 +280,21 @@ const JWT_PROPS = {
 		async (req, res, next) => {
 			try {
 				const { file } = req
-				if (file) {
-					const userId = req.user._id
-					const user = await User.findById(userId, 'imgLink')
-					if (user == null) throw new Error('找不到使用者')
+				console.log(file)
+				await commonUserUploadPicture(req, res, file)
+			} catch (err) {
+				next(err)
+			}
+		},
+	)
 
-					const { link: newImgLink } = await uploadImgurAndSave(file)
-
-					if (user.imgLink != null) {
-						const imgurPictureId = getImgurPictureId(user.imgLink)
-						if (imgurPictureId != null) {
-							try {
-								// 找不到圖片不砍就是了
-								await deleteDbAndImgurPicture(imgurPictureId)
-							} catch {}
-						}
-					}
-
-					await User.updateOne({ _id: userId }, { imgLink: newImgLink })
-
-					return res.send({
-						success: true,
-						message: '上傳圖片成功',
-						data: newImgLink,
-					})
-				}
-				throw new Error('請上傳圖片')
+	app.post(
+		'/api/users/uploadBase64Picture',
+		expressJwt(JWT_PROPS),
+		async (req, res, next) => {
+			try {
+				const {base64Image} = req.body
+				await commonUserUploadPicture(req, res, base64Image, true)
 			} catch (err) {
 				next(err)
 			}
