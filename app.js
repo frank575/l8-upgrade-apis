@@ -280,7 +280,6 @@ const JWT_PROPS = {
 		async (req, res, next) => {
 			try {
 				const { file } = req
-				console.log(file)
 				await commonUserUploadPicture(req, res, file)
 			} catch (err) {
 				next(err)
