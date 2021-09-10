@@ -110,8 +110,9 @@ const JWT_PROPS = {
 				message: '上傳圖片成功',
 				data: newImgLink,
 			})
+		} else {
+			throw new Error('請上傳圖片')
 		}
-		throw new Error('請上傳圖片')
 	}
 
 	checkUserExistsCreate({
