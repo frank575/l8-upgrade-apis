@@ -110,8 +110,9 @@ const JWT_PROPS = {
 				message: '上傳圖片成功',
 				data: newImgLink,
 			})
+		} else {
+			throw new Error('請上傳圖片')
 		}
-		throw new Error('請上傳圖片')
 	}
 
 	checkUserExistsCreate({
@@ -225,6 +226,25 @@ const JWT_PROPS = {
 				success: true,
 				message: '取得使用者成功',
 				data: user,
+			})
+		} catch (err) {
+			next(err)
+		}
+	})
+
+	app.get('/api/users', expressJwt(JWT_PROPS), async (req, res, next) => {
+		try {
+			const { page, size } = req.query
+			const users = await User.find()
+			const content = users.slice(page * size, (Number(page) + 1) * size)
+
+			res.send({
+				success: true,
+				message: '取得使用者列表成功',
+				data: {
+					content: content,
+					total: users.length
+				},
 			})
 		} catch (err) {
 			next(err)
