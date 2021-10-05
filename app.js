@@ -1,5 +1,3 @@
-const http = require('http')
-const { Server: SocketServer } = require('socket.io')
 const express = require('express')
 const expressJwt = require('express-jwt')
 const jwt = require('jsonwebtoken')
@@ -152,8 +150,6 @@ const JWT_PROPS = {
 	}
 
 	const app = express()
-	const server = http.createServer(app)
-	const io = new SocketServer(server, { cors: { origin: '*' } })
 
 	app.use(cors())
 	app.use(bodyParser())
@@ -424,18 +420,6 @@ const JWT_PROPS = {
 		})
 	})
 
-	io.on('connection', s => {
-		console.log('a user connected')
-		s.on('disconnect', () => {
-			console.log('user disconnected')
-		})
-		s.on('chat message', msg => {
-			console.log('message: ' + msg)
-			io.emit('chat message', '>> pong')
-		})
-	})
-
-	server.listen(process.env.PORT || APP_PORT, () => {
-		console.log(`Server listening at http://localhost:${APP_PORT}`)
-	})
+	await app.listen(APP_PORT)
+	console.log(`Server listening at http://localhost:${APP_PORT}`)
 })()
