@@ -38,5 +38,8 @@
     "cross-env": "^7.0.3",
     "nodemon": "^2.0.12",
     "prettier": "^2.3.2"
+  },
+  "engines": {
+    "node": "12.18.2"
   }
 }
