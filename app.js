@@ -435,7 +435,7 @@ const JWT_PROPS = {
 		})
 	})
 
-	server.listen(APP_PORT, () => {
+	server.listen(process.env.PORT || APP_PORT, () => {
 		console.log(`Server listening at http://localhost:${APP_PORT}`)
 	})
 })()
