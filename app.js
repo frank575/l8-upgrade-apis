@@ -1,3 +1,5 @@
+const http = require('http')
+const { Server: SocketServer } = require('socket.io')
 const express = require('express')
 const expressJwt = require('express-jwt')
 const jwt = require('jsonwebtoken')
@@ -39,9 +41,9 @@ const uploadPicture = multer({
 })
 
 const JWT_PROPS = {
-		secret: JWT_SECRET,
-		algorithms: ['HS256'],
-	}
+	secret: JWT_SECRET,
+	algorithms: ['HS256'],
+}
 
 ;(async () => {
 	await mongoose.connect(MONGODB_URI)
@@ -150,6 +152,8 @@ const JWT_PROPS = {
 	}
 
 	const app = express()
+	const server = http.createServer(app)
+	const io = new SocketServer(server, { cors: { origin: '*' } })
 
 	app.use(cors())
 	app.use(bodyParser())
@@ -165,7 +169,10 @@ const JWT_PROPS = {
 	app.post('/api/login', async (req, res, next) => {
 		try {
 			const { username } = req.body
-			const user = await User.findOne({ username }, 'name username role imgLink')
+			const user = await User.findOne(
+				{ username },
+				'name username role imgLink',
+			)
 
 			if (user == null)
 				throw new Error('使用者不存在，請確認帳號或密碼是否正確')
@@ -196,7 +203,10 @@ const JWT_PROPS = {
 
 			if (!/^[A-z]\d{2,6}[A-z]$/.test(password)) throw new Error('密碼格式錯誤')
 
-			const user = await User.findOne({ username }, 'name username role imgLink')
+			const user = await User.findOne(
+				{ username },
+				'name username role imgLink',
+			)
 
 			if (user != null) throw new Error('使用者已存在')
 
@@ -243,7 +253,7 @@ const JWT_PROPS = {
 				message: '取得使用者列表成功',
 				data: {
 					content: content,
-					total: users.length
+					total: users.length,
 				},
 			})
 		} catch (err) {
@@ -251,34 +261,42 @@ const JWT_PROPS = {
 		}
 	})
 
-	app.get('/api/users/:username', expressJwt(JWT_PROPS), async (req, res, next) => {
-		try {
-			const { username } = req.params
-			const user = await User.findOne({ username }, 'name username role imgLink')
+	app.get(
+		'/api/users/:username',
+		expressJwt(JWT_PROPS),
+		async (req, res, next) => {
+			try {
+				const { username } = req.params
+				const user = await User.findOne(
+					{ username },
+					'name username role imgLink',
+				)
 
-			if (user == null) throw new Error('使用者不存在')
+				if (user == null) throw new Error('使用者不存在')
 
-			res.send({
-				success: true,
-				message: '取得使用者成功',
-				data: user,
-			})
-		} catch (err) {
-			next(err)
-		}
-	})
+				res.send({
+					success: true,
+					message: '取得使用者成功',
+					data: user,
+				})
+			} catch (err) {
+				next(err)
+			}
+		},
+	)
 
 	app.put(
 		'/api/users/updateName',
 		expressJwt(JWT_PROPS),
 		async (req, res, next) => {
 			try {
-				const {name} = req.body
+				const { name } = req.body
 				if (name == null) throw new Error('body.name 為必填')
-				if (typeof name !== 'string' || name.trim().length === 0) throw new Error('名字不能為空字串')
+				if (typeof name !== 'string' || name.trim().length === 0)
+					throw new Error('名字不能為空字串')
 
 				const { _id } = req.user
-				const user = await User.findOneAndUpdate({ _id }, { name } )
+				const user = await User.findOneAndUpdate({ _id }, { name })
 
 				if (user == null) throw new Error('使用者不存在')
 
@@ -312,7 +330,7 @@ const JWT_PROPS = {
 		expressJwt(JWT_PROPS),
 		async (req, res, next) => {
 			try {
-				const {base64Image} = req.body
+				const { base64Image } = req.body
 				await commonUserUploadPicture(req, res, base64Image, true)
 			} catch (err) {
 				next(err)
@@ -362,29 +380,33 @@ const JWT_PROPS = {
 		}
 	})
 
-	app.delete('/api/files/:id', expressJwt(JWT_PROPS), async (req, res, next) => {
-		try {
-			const { id } = req.params
-			if (id) {
-				await deleteDbAndImgurPicture(id)
+	app.delete(
+		'/api/files/:id',
+		expressJwt(JWT_PROPS),
+		async (req, res, next) => {
+			try {
+				const { id } = req.params
+				if (id) {
+					await deleteDbAndImgurPicture(id)
 
-				res.send({
-					success: true,
-					message: '刪除圖片成功',
-					data: null,
-				})
+					res.send({
+						success: true,
+						message: '刪除圖片成功',
+						data: null,
+					})
+				}
+				throw new Error('圖片 id 為必填')
+			} catch (err) {
+				next(err)
 			}
-			throw new Error('圖片 id 為必填')
-		} catch (err) {
-			next(err)
-		}
-	})
+		},
+	)
 
 	app.use((req, res, next) => {
 		res.status(404).send({
 			success: false,
 			message: '找不到API',
-			data: null
+			data: null,
 		})
 	})
 
@@ -402,6 +424,18 @@ const JWT_PROPS = {
 		})
 	})
 
-	await app.listen(APP_PORT)
-	console.log(`Server listening at http://localhost:${APP_PORT}`)
+	io.on('connection', s => {
+		console.log('a user connected')
+		s.on('disconnect', () => {
+			console.log('user disconnected')
+		})
+		s.on('chat message', msg => {
+			console.log('message: ' + msg)
+			io.emit('chat message', '>> pong')
+		})
+	})
+
+	server.listen(APP_PORT, () => {
+		console.log(`Server listening at http://localhost:${APP_PORT}`)
+	})
 })()
